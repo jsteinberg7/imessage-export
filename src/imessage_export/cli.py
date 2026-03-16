@@ -80,6 +80,7 @@ def main(chat_name, output, fmt, your_name, no_media, no_contacts,
         if not no_photos_export:
             # Find which attachments are videos that need Photos export
             video_stems = set()
+            video_dates = {}  # stem -> msg_date for date matching
             for msg in messages:
                 for att in att_map.get(msg["ROWID"], []):
                     name = att.get("transfer_name", "")
@@ -89,8 +90,10 @@ def main(chat_name, output, fmt, your_name, no_media, no_contacts,
                     if ext in {'.mov', '.mp4', '.m4v', '.avi'}:
                         stem = os.path.splitext(name)[0].upper()
                         video_stems.add(stem)
+                        if stem not in video_dates:
+                            video_dates[stem] = msg.get("date", 0)
 
-            uuids = photos_index.find_uuids_for_stems(list(video_stems))
+            uuids = photos_index.find_uuids_for_stems(list(video_stems), video_dates)
             if uuids:
                 click.echo(f"🎥 Exporting {len(uuids)} videos from Photos.app...")
                 export_dir = os.path.join(output, ".photos_export")

@@ -89,13 +89,38 @@ class PhotosIndex:
                     return max(matches, key=os.path.getsize)
         return None
 
-    def find_uuids_for_stems(self, stems: list) -> dict:
-        """Find Photos UUIDs for a list of filename stems (for batch AppleScript export)."""
+    def find_uuids_for_stems(self, stems: list, msg_dates: dict = None) -> dict:
+        """Find Photos UUIDs for a list of filename stems (for batch AppleScript export).
+        
+        Args:
+            stems: list of filename stems (e.g. ['IMG_6375'])
+            msg_dates: optional {stem: apple_timestamp} for date-based matching
+        """
         result = {}
         for stem in stems:
             candidates = self.photos_map.get(stem.upper(), [])
-            if candidates:
+            if not candidates:
+                continue
+            if len(candidates) == 1:
                 result[stem] = candidates[0]["uuid"]
+                continue
+            # Pick best by date if available
+            if msg_dates and stem in msg_dates:
+                msg_dt = apple_ts_to_dt(msg_dates[stem])
+                if msg_dt:
+                    best = None
+                    best_diff = timedelta(days=9999)
+                    for c in candidates:
+                        if c["date"]:
+                            photo_dt = datetime.fromtimestamp(c["date"] + APPLE_EPOCH)
+                            diff = abs(photo_dt - msg_dt)
+                            if diff < best_diff:
+                                best_diff = diff
+                                best = c
+                    if best and best_diff < timedelta(days=90):
+                        result[stem] = best["uuid"]
+                        continue
+            result[stem] = candidates[0]["uuid"]
         return result
 
 
