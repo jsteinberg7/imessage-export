@@ -128,7 +128,7 @@ def generate_html(messages: list, att_map: dict, contacts: dict,
             for emoji, names in emoji_counts.items():
                 tooltip = ", ".join(names)
                 count = f" {len(names)}" if len(names) > 1 else ""
-                badges.append(f'<span class="reaction-badge" title="{html_mod.escape(tooltip)}">{emoji}{count}</span>')
+                badges.append(f'<span class="reaction-badge" data-who="{html_mod.escape(tooltip)}">{emoji}{count}</span>')
             reaction_html = f'<div class="reaction-bar">{"".join(badges)}</div>'
 
         side = "right" if is_me else "left"
@@ -139,13 +139,11 @@ def generate_html(messages: list, att_map: dict, contacts: dict,
 
         bubble = f'''<div class="msg {side}">
             <div class="sender" style="color:{name_color}">{html_mod.escape(sender)}</div>
-            <div class="bubble-wrap">
-                <div class="bubble" style="background:{bg};color:{fg}">
-                    {media_html}
-                    {f'<div class="text">{text_html}</div>' if text_html else ''}
-                </div>
-                {reaction_html}
+            <div class="bubble" style="background:{bg};color:{fg}">
+                {media_html}
+                {f'<div class="text">{text_html}</div>' if text_html else ''}
             </div>
+            {reaction_html}
             <div class="time">{time_str}</div>
         </div>'''
         bubbles.append(bubble)
@@ -180,12 +178,16 @@ h1 {{ text-align: center; font-size: 1.4em; color: #333; margin: 20px 0; }}
           display: block; }}
 video.media {{ max-width: 100%; border-radius: 12px; }}
 .missing {{ font-size: 0.8em; color: #8E8E93; font-style: italic; padding: 4px 0; }}
-.bubble-wrap {{ position: relative; max-width: 70%; }}
-.reaction-bar {{ display: flex; gap: 2px; margin-top: -8px; padding-left: 8px; }}
-.msg.right .reaction-bar {{ justify-content: flex-end; padding-right: 8px; padding-left: 0; }}
+.reaction-bar {{ display: flex; gap: 2px; margin-top: -6px; margin-bottom: 2px; padding-left: 12px; }}
+.msg.right .reaction-bar {{ justify-content: flex-end; padding-right: 12px; padding-left: 0; }}
 .reaction-badge {{ background: #F0F0F0; border: 1px solid #E0E0E0; border-radius: 12px;
                    padding: 1px 6px; font-size: 0.75em; cursor: default;
-                   box-shadow: 0 1px 2px rgba(0,0,0,0.1); }}
+                   box-shadow: 0 1px 2px rgba(0,0,0,0.1); position: relative; }}
+.reaction-badge:hover::after {{ content: attr(data-who); position: absolute; bottom: 100%;
+                                left: 50%; transform: translateX(-50%); background: #333;
+                                color: white; padding: 4px 8px; border-radius: 6px;
+                                font-size: 0.85em; white-space: nowrap; z-index: 10;
+                                margin-bottom: 4px; }}
 </style>
 </head>
 <body>
