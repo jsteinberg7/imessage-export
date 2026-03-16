@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "imessage-export"
+version = "0.1.0"
+description = "Export iMessage chats as styled HTML time capsules with media recovery"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [{name = "Jason Steinberg"}]
+keywords = ["imessage", "export", "macos", "chat", "backup"]
+classifiers = [
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = ["click>=8.0"]
+
+[project.scripts]
+imessage-export = "imessage_export.cli:main"
+
+[project.optional-dependencies]
+contacts = ["requests"]
