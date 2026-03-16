@@ -46,7 +46,7 @@ imessage-export "Chat Name" -o ./export-folder --your-name "UserName"
 ### Typical invocation
 
 ```bash
-imessage-export "Family Chat" -o ~/Desktop/family-export --your-name "Jason" --bb-url http://localhost:1234
+imessage-export "Family Chat" -o ~/Desktop/family-export --your-name "Alex" --bb-url http://localhost:1234
 ```
 
 ## How it works
