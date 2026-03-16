@@ -13,6 +13,19 @@ PHOTOS_DB = os.path.expanduser("~/Pictures/Photos Library.photoslibrary/database
 PHOTOS_LIB = os.path.expanduser("~/Pictures/Photos Library.photoslibrary")
 
 VIDEO_EXTENSIONS = {'.mov', '.mp4', '.m4v', '.avi', '.webm'}
+HEIC_EXTENSIONS = {'.heic'}
+
+
+def convert_heic_to_jpeg(src: str, dst: str) -> bool:
+    """Convert HEIC to JPEG using macOS sips. Returns True on success."""
+    try:
+        result = subprocess.run(
+            ["sips", "-s", "format", "jpeg", src, "--out", dst],
+            capture_output=True, timeout=30
+        )
+        return result.returncode == 0 and os.path.exists(dst)
+    except Exception:
+        return False
 
 
 class PhotosIndex:
@@ -186,14 +199,25 @@ def recover_attachment(transfer_name: str, db_filename: str, msg_date: int,
     dst = os.path.join(media_dir, safe_base)
     stem = os.path.splitext(transfer_name)[0].upper()
 
+    def _maybe_convert_heic(filepath: str) -> str:
+        """Convert HEIC to JPEG if needed. Returns final path."""
+        if os.path.splitext(filepath)[1].lower() in HEIC_EXTENSIONS:
+            jpeg_path = os.path.splitext(filepath)[0] + ".jpeg"
+            if convert_heic_to_jpeg(filepath, jpeg_path):
+                os.remove(filepath)
+                return jpeg_path
+        return filepath
+
     # Tier 1: Direct file on disk
     if db_filename:
         real_src = db_filename.replace("~", os.path.expanduser("~"))
         if os.path.isfile(real_src):
             try:
                 shutil.copy2(real_src, dst)
-                ext = os.path.splitext(real_src)[1].lower()
-                return safe_base, ext in VIDEO_EXTENSIONS, True
+                dst = _maybe_convert_heic(dst)
+                final_name = os.path.basename(dst)
+                ext = os.path.splitext(dst)[1].lower()
+                return final_name, ext in VIDEO_EXTENSIONS, True
             except Exception:
                 pass
 
@@ -205,7 +229,10 @@ def recover_attachment(transfer_name: str, db_filename: str, msg_date: int,
         dst = os.path.join(media_dir, final)
         try:
             shutil.copy2(src, dst)
-            return final, ext.lower() in VIDEO_EXTENSIONS, True
+            dst = _maybe_convert_heic(dst)
+            final = os.path.basename(dst)
+            ext = os.path.splitext(dst)[1].lower()
+            return final, ext in VIDEO_EXTENSIONS, True
         except Exception:
             pass
 
@@ -219,7 +246,10 @@ def recover_attachment(transfer_name: str, db_filename: str, msg_date: int,
             dst = os.path.join(media_dir, final)
             try:
                 shutil.copy2(pf, dst)
-                return final, ext.lower() in VIDEO_EXTENSIONS, True
+                dst = _maybe_convert_heic(dst)
+                final = os.path.basename(dst)
+                ext = os.path.splitext(dst)[1].lower()
+                return final, ext in VIDEO_EXTENSIONS, True
             except Exception:
                 pass
 
