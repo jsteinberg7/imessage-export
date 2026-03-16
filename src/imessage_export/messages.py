@@ -119,7 +119,7 @@ def get_messages(chat_rowid: int, db_path: str = MESSAGES_DB) -> list:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     messages = conn.execute("""
-        SELECT m.ROWID, m.text, m.date, m.is_from_me, m.item_type,
+        SELECT m.ROWID, m.guid, m.text, m.date, m.is_from_me, m.item_type,
                m.associated_message_type, m.group_title,
                m.attributedBody,
                h.id as handle_id
@@ -160,6 +160,60 @@ def get_attachments(chat_rowid: int, db_path: str = MESSAGES_DB) -> dict:
             att_map[mid] = []
         att_map[mid].append(dict(r))
     return att_map
+
+
+REACTION_EMOJI = {
+    2000: "❤️",   # Loved
+    2001: "👍",   # Liked
+    2002: "👎",   # Disliked
+    2003: "😂",   # Laughed
+    2004: "‼️",   # Emphasized
+    2005: "❓",   # Questioned
+    # 3000+ are removal of reactions — ignore
+}
+
+
+def get_reactions(chat_rowid: int, db_path: str = MESSAGES_DB) -> dict:
+    """Get reactions grouped by parent message GUID.
+    
+    Returns: {parent_guid: [{emoji, sender_handle, is_from_me}]}
+    """
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute("""
+        SELECT m.associated_message_guid, m.associated_message_type,
+               m.is_from_me, h.id as handle_id
+        FROM chat_message_join cmj
+        JOIN message m ON m.ROWID = cmj.message_id
+        LEFT JOIN handle h ON m.handle_id = h.ROWID
+        WHERE cmj.chat_id = ?
+          AND m.associated_message_type IS NOT NULL
+          AND m.associated_message_type >= 2000
+          AND m.associated_message_type < 3000
+    """, (chat_rowid,)).fetchall()
+    conn.close()
+
+    reactions = {}
+    for r in rows:
+        guid_raw = r["associated_message_guid"] or ""
+        # Strip "p:X/" prefix to get the actual message guid
+        if "/" in guid_raw:
+            parent_guid = guid_raw.split("/", 1)[1]
+        else:
+            parent_guid = guid_raw
+        
+        emoji = REACTION_EMOJI.get(r["associated_message_type"], "")
+        if not emoji:
+            continue
+
+        if parent_guid not in reactions:
+            reactions[parent_guid] = []
+        reactions[parent_guid].append({
+            "emoji": emoji,
+            "handle": r["handle_id"] or "",
+            "is_from_me": r["is_from_me"],
+        })
+    return reactions
 
 
 def get_handles(chat_rowid: int, db_path: str = MESSAGES_DB) -> list:

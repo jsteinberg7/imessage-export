@@ -23,7 +23,8 @@ def _assign_colors(contacts: dict) -> dict:
 
 def generate_html(messages: list, att_map: dict, contacts: dict,
                   media_results: dict, chat_name: str,
-                  your_name: str = "You") -> str:
+                  your_name: str = "You",
+                  reactions: dict = None) -> str:
     """Generate the full HTML export.
     
     Args:
@@ -33,7 +34,10 @@ def generate_html(messages: list, att_map: dict, contacts: dict,
         media_results: {msg_rowid: [{filename, is_video, success, transfer_name}]}
         chat_name: display name of the chat
         your_name: name to use for "is_from_me" messages
+        reactions: {parent_guid: [{emoji, handle, is_from_me}]} from get_reactions()
     """
+    if reactions is None:
+        reactions = {}
     color_map = _assign_colors(contacts)
     bubbles = []
     last_date = None
@@ -67,14 +71,8 @@ def generate_html(messages: list, att_map: dict, contacts: dict,
         text = msg["text"] or ""
         time_str = dt.strftime("%-I:%M %p")
 
-        # Reactions
+        # Skip standalone reaction messages — they're shown as badges on parent
         if msg.get("associated_message_type") and msg["associated_message_type"] != 0:
-            if text:
-                color = "#007AFF" if is_me else color_map.get(handle, "#8E8E93")
-                bubbles.append(
-                    f'<div class="reaction"><small style="color:{color}">'
-                    f'{html_mod.escape(sender)}: {html_mod.escape(text)}</small></div>'
-                )
             continue
 
         # Group title changes
@@ -113,6 +111,26 @@ def generate_html(messages: list, att_map: dict, contacts: dict,
         if not text and not media_html:
             continue
 
+        # Build reaction badges for this message
+        msg_guid = msg.get("guid", "")
+        msg_reactions = reactions.get(msg_guid, [])
+        reaction_html = ""
+        if msg_reactions:
+            # Group by emoji and count
+            emoji_counts = {}
+            for r in msg_reactions:
+                e = r["emoji"]
+                if e not in emoji_counts:
+                    emoji_counts[e] = []
+                name = your_name if r["is_from_me"] else contacts.get(r["handle"], r["handle"])
+                emoji_counts[e].append(name)
+            badges = []
+            for emoji, names in emoji_counts.items():
+                tooltip = ", ".join(names)
+                count = f" {len(names)}" if len(names) > 1 else ""
+                badges.append(f'<span class="reaction-badge" title="{html_mod.escape(tooltip)}">{emoji}{count}</span>')
+            reaction_html = f'<div class="reaction-bar">{"".join(badges)}</div>'
+
         side = "right" if is_me else "left"
         bg = "#007AFF" if is_me else "#E9E9EB"
         fg = "white" if is_me else "black"
@@ -121,9 +139,12 @@ def generate_html(messages: list, att_map: dict, contacts: dict,
 
         bubble = f'''<div class="msg {side}">
             <div class="sender" style="color:{name_color}">{html_mod.escape(sender)}</div>
-            <div class="bubble" style="background:{bg};color:{fg}">
-                {media_html}
-                {f'<div class="text">{text_html}</div>' if text_html else ''}
+            <div class="bubble-wrap">
+                <div class="bubble" style="background:{bg};color:{fg}">
+                    {media_html}
+                    {f'<div class="text">{text_html}</div>' if text_html else ''}
+                </div>
+                {reaction_html}
             </div>
             <div class="time">{time_str}</div>
         </div>'''
@@ -159,7 +180,12 @@ h1 {{ text-align: center; font-size: 1.4em; color: #333; margin: 20px 0; }}
           display: block; }}
 video.media {{ max-width: 100%; border-radius: 12px; }}
 .missing {{ font-size: 0.8em; color: #8E8E93; font-style: italic; padding: 4px 0; }}
-.reaction {{ text-align: center; margin: 2px 0; }}
+.bubble-wrap {{ position: relative; max-width: 70%; }}
+.reaction-bar {{ display: flex; gap: 2px; margin-top: -8px; padding-left: 8px; }}
+.msg.right .reaction-bar {{ justify-content: flex-end; padding-right: 8px; padding-left: 0; }}
+.reaction-badge {{ background: #F0F0F0; border: 1px solid #E0E0E0; border-radius: 12px;
+                   padding: 1px 6px; font-size: 0.75em; cursor: default;
+                   box-shadow: 0 1px 2px rgba(0,0,0,0.1); }}
 </style>
 </head>
 <body>

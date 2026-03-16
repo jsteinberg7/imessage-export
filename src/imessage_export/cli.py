@@ -26,7 +26,7 @@ def main(chat_name, output, fmt, your_name, no_media, no_contacts,
     
     Requires macOS with Full Disk Access granted to your terminal.
     """
-    from .messages import find_chat, get_messages, get_attachments, get_handles
+    from .messages import find_chat, get_messages, get_attachments, get_handles, get_reactions
     from .contacts import resolve_contacts
     from .media import PhotosIndex, recover_attachment, batch_export_from_photos
     from .html_export import generate_html
@@ -144,6 +144,11 @@ def main(chat_name, output, fmt, your_name, no_media, no_contacts,
         click.echo(f"   Recovered {recovered}/{total_atts} attachments "
                     f"({stats['failed']} unavailable)")
 
+    # Get reactions
+    click.echo("💬 Collecting reactions...")
+    reaction_map = get_reactions(chat["ROWID"])
+    click.echo(f"   {sum(len(v) for v in reaction_map.values())} reactions on {len(reaction_map)} messages")
+
     # Generate output
     if fmt == "html":
         click.echo("🎨 Generating HTML...")
@@ -154,6 +159,7 @@ def main(chat_name, output, fmt, your_name, no_media, no_contacts,
             media_results=media_results,
             chat_name=chat["display_name"] or chat_name,
             your_name=your_name,
+            reactions=reaction_map,
         )
         out_path = os.path.join(output, "chat.html")
         with open(out_path, "w") as f:
