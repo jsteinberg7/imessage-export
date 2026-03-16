@@ -47,20 +47,20 @@ def extract_attributed_text(blob: bytes) -> str:
             continue
         first = data[pos]
         if first == 0x81:
-            if pos + 1 >= len(data): continue
-            length = data[pos + 1]
-            pos += 2
-        elif first == 0x82:
             if pos + 2 >= len(data): continue
-            length = (data[pos + 1] << 8) | data[pos + 2]
-            pos += 3
-        elif first == 0x83:
+            length = data[pos + 1]
+            pos += 3  # skip 0x81 + length byte + 0x00 padding
+        elif first == 0x82:
             if pos + 3 >= len(data): continue
+            length = (data[pos + 1] << 8) | data[pos + 2]
+            pos += 4  # skip 0x82 + 2 length bytes + 0x00 padding
+        elif first == 0x83:
+            if pos + 4 >= len(data): continue
             length = (data[pos + 1] << 16) | (data[pos + 2] << 8) | data[pos + 3]
-            pos += 4
+            pos += 5  # skip 0x83 + 3 length bytes + 0x00 padding
         elif first < 0x80:
             length = first
-            pos += 1
+            pos += 1  # no padding for single-byte lengths
         else:
             continue
         if pos + length > len(data):
